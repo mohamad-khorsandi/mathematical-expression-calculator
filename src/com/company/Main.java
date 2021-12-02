@@ -1,24 +1,75 @@
 package com.company;
 
+import com.company.dateStructurs.stack;
+
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Main {
     static Scanner sc = new Scanner(System.in);
+    static String strExp;
     static Polynomial mainPolynomial;
     public static void main(String[] args) {
-        String strExp = sc.nextLine().replaceAll("/s", "");
-        strExp = strExp.replaceAll(Number.negativeSignRegex, "-1*");
-        mainPolynomial = new Polynomial(strExp);
+        while (sc.hasNextLine()) {
+            strExp = sc.nextLine().replaceAll("\\s", "");
+            strExp = strExp.replaceAll(Number.negativeSignRegex, "-1*");
 
-        fullPrint();
-        System.out.println(mainPolynomial.calculate());
-        System.out.println();
+            if (expChecker()) {
+                mainPolynomial = new Polynomial(strExp);
+                fullPrint();
+                System.out.println(mainPolynomial.calculate());
+            }
+        }
     }
     static void fullPrint(){
         mainPolynomial.print();
         System.out.println();
+    }
+
+    // haft khan E rostam
+    static boolean expChecker(){
+        String ops = Operator.regex;
+        String opsExceptMinus = ops.replaceFirst("\\\\-", "");
+
+        if(contains(opsExceptMinus+"($|\\)|"+ops+")","operator's second operand not valid")) return false;
+        if(contains("[^\\)\\d]"+opsExceptMinus, "operator's first operand not valid")) return false;
+
+        if(contains(ops + "-|-("+ops+"|$|\\))", "wrong usage of \"-\" character")) return false;
+        if(contains("/0", "division by zero")) return false;
+
+        if(contains("\\(\\)", "empty parentheses")) return false;
+
+        if(!parenthesesCheck()){
+            System.out.println("parentheses are not correct");
+            return false;
+        }
+
+        return true;
+    }
+
+    private static boolean contains(String regex, String errorMessage){
+        Matcher m = Pattern.compile(regex).matcher(strExp);
+        if(m.find()) {
+            System.out.println("ERROR: ");
+            System.out.println(errorMessage + " in char " + m.start() + " :" + m.group());
+            return true;
+        }
+        return false;
+    }
+
+    static boolean parenthesesCheck(){
+        stack<Boolean> stack = new stack<>();
+        for (int i = 0; i < strExp.length(); i++) {
+            if(strExp.charAt(i) == '(')
+                stack.push(true);
+            else if (strExp.charAt(i) == ')')
+                if(stack.isEmpty())
+                    return false;
+                else
+                    stack.pop();
+        }
+        return stack.isEmpty();
     }
 }
 
