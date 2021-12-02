@@ -17,11 +17,11 @@ public class Main {
 
             if (expChecker()) {
                 mainPolynomial = new Polynomial(strExp);
-                fullPrint();
-                System.out.println(mainPolynomial.calculate());
+                mainPolynomial.calculate();
             }
         }
     }
+
     static void fullPrint(){
         mainPolynomial.print();
         System.out.println();
@@ -82,9 +82,13 @@ class Polynomial{
 
         Matcher m = Pattern.compile(Function.regex).matcher(strExp);
         while (m.find()){
-            String strFunc = m.group();
-            expression.set(m.start(), new Function(strFunc));
-            strExp = strExp.replace(strFunc,"!".repeat(strFunc.length()));
+            String name = m.group();
+            String strArg = Function.findArg(strExp, m.end());
+            expression.set(m.start(), new Function(name, strArg));
+
+            String entireFunc = name+"("+strArg+")";
+            strExp = strExp.replace(entireFunc,"!".repeat(entireFunc.length()));
+            m.region(m.start() + entireFunc.length() , strExp.length());
         }
 
         m = Pattern.compile(Number.regex).matcher(strExp);
@@ -139,10 +143,9 @@ abstract class MathElements{
 }
 
 class Function extends MathElements implements IValuable{
-    public Function(String strFunc) {
-        this.name = strFunc.replaceFirst("\\(.*","");
-        String strArgument = strFunc.replaceFirst(this.name, "").replaceAll("^\\(|\\)$", "");
-        argument = new Polynomial(strArgument);
+    public Function(String name, String strArg) {
+        this.name = name;
+        this.argument = new Polynomial(strArg);
         this.operation = fetchOperation(this.name);
     }
     public Function(Polynomial argument) {
@@ -210,7 +213,7 @@ class Function extends MathElements implements IValuable{
         };
     }
 
-    static String regex = "("+Operation.namesRegex+")\\(.*?\\)(?=[^)]*?\\(|[^)]*?$)";
+    static String regex = "("+Operation.namesRegex+")(?=\\()";
     Polynomial argument;
     String name;
     Operation operation;
@@ -258,6 +261,22 @@ class Function extends MathElements implements IValuable{
         }
         Collections.sort(operators);
         return operators;
+    }
+
+    static String findArg(String strExp, int openIndex){
+        stack<Boolean> stack = new stack<>();
+        int i;
+        for (i = openIndex; i < strExp.length(); i++) {
+            char c = strExp.charAt(i);
+            if (c == '(') {
+                stack.push(true);
+            }
+            else if (c == ')'){
+                stack.pop();
+            }
+            if (stack.isEmpty()) break;
+        }
+        return strExp.substring(openIndex + 1, i);
     }
 
     private abstract static class Operation{
