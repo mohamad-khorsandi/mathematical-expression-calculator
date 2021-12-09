@@ -13,7 +13,15 @@ public class stack<T> {
         return innerList.remove();
     }
 
+    public T top(){
+        return innerList.element();
+    }
+
     public boolean isEmpty(){
         return innerList.size() == 0;
+    }
+
+    public int size(){
+        return innerList.size();
     }
 }

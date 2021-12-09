@@ -17,7 +17,7 @@ public class Main {
 
             if (expChecker()) {
                 mainPolynomial = new Polynomial(strExp);
-                mainPolynomial.calculate();
+                System.out.println(mainPolynomial.calculate());
             }
         }
     }
@@ -77,14 +77,14 @@ class Polynomial{
     public Polynomial(String strExp) {
         // str to Polynomial
         for (int i = 0; i < strExp.length(); i++) {
-            expression.add(null);
+            terms.add(null);
         }
 
         Matcher m = Pattern.compile(Function.regex).matcher(strExp);
         while (m.find()){
             String name = m.group();
             String strArg = Function.findArg(strExp, m.end());
-            expression.set(m.start(), new Function(name, strArg));
+            terms.set(m.start(), new Function(name, strArg));
 
             String entireFunc = name+"("+strArg+")";
             strExp = strExp.replace(entireFunc,"!".repeat(entireFunc.length()));
@@ -93,7 +93,7 @@ class Polynomial{
 
         m = Pattern.compile(Number.regex).matcher(strExp);
         while (m.find()){
-            expression.set(m.start(), new Number(m.group()));
+            terms.set(m.start(), new Number(m.group()));
         }
 
         // change negative signs, so they won't be taken as operator
@@ -101,41 +101,41 @@ class Polynomial{
 
         m = Pattern.compile(Operator.regex).matcher(strExp);
         while (m.find()){
-            expression.set(m.start(), Operator.fetchObject(m.group()));
+            terms.set(m.start(), Operator.fetchObject(m.group()));
         }
 
-        for (int i = 0; i < expression.size(); i++) {
-            if (expression.get(i) == null) {
-                expression.remove(i);
+        for (int i = 0; i < terms.size(); i++) {
+            if (terms.get(i) == null) {
+                terms.remove(i);
                 i--;
             }
         }
     }
 
-    LinkedList<MathElements> expression = new LinkedList<>();
+    LinkedList<MathElements> terms = new LinkedList<>();
 
-    MathElements get(int index){
-        return expression.get(index);
+    public MathElements get(int index){
+        return terms.get(index);
     }
 
     void replaceWithResult(Number result, int iPlus1, int i, int iMinus1){
-        expression.set(iPlus1, result);
-        expression.remove(i);
-        expression.remove(iMinus1);
+        terms.set(iPlus1, result);
+        terms.remove(i);
+        terms.remove(iMinus1);
     }
 
     void print(){
-        for (MathElements mathElements : expression)
+        for (MathElements mathElements : terms)
             mathElements.print();
     }
 
     double calculate(){
-        return new Function(this).calculate();
+        return new Function(this).getValue();
     }
 }
 
 interface IValuable {
-    double calculate();
+    double getValue();
 }
 
 abstract class MathElements{
@@ -233,34 +233,38 @@ class Function extends MathElements implements IValuable{
     }
 
     @Override
-    public double calculate(){
-        LinkedList<Operator>sortedOperators = sortedOperators();
-        double result = 0;
-        int numOfOperators = sortedOperators.size();
-        for (int j = 0; j < numOfOperators; j++) {
-            Operator highestOperator = sortedOperators.removeLast();
-            int operatorIndex = argument.expression.indexOf(highestOperator);
+    public double getValue(){
+        LinkedList <Operator> sortedOps = sortOpsDec();
+
+        while (argument.terms.size() > 1) {
+            Operator highestOpr = sortedOps.removeFirst();
+            int operatorIndex;
+            if (highestOpr.symbol.equals("^"))
+                operatorIndex = argument.terms.lastIndexOf(highestOpr);
+            else
+                operatorIndex = argument.terms.indexOf(highestOpr);
 
             IValuable operand1 = ((IValuable)(argument.get(operatorIndex - 1)));
             IValuable operand2 = ((IValuable)(argument.get(operatorIndex + 1)));
 
-            result = highestOperator.operation(operand1.calculate(), operand2.calculate());
+            double result = highestOpr.operation(operand1.getValue(), operand2.getValue());
             argument.replaceWithResult(new Number(result), operatorIndex + 1, operatorIndex, operatorIndex - 1);
 
             Main.fullPrint();
         }
-        return this.operation.applyFunc(result);
+        return this.operation.applyFunc(((IValuable)argument.get(0)).getValue());
     }
 
-    private LinkedList<Operator> sortedOperators(){
-        LinkedList<Operator> operators = new LinkedList<>();
-        for (MathElements ml : argument.expression) {
-            if (ml instanceof Operator) {
-                operators.add((Operator)ml);
+    private LinkedList<Operator> sortOpsDec(){
+        LinkedList<Operator> ops = new LinkedList<>();
+        for (int i = 0; i < argument.terms.size(); i++) {
+            if (argument.get(i) instanceof Operator) {
+                Operator newOp = (Operator) argument.get(i);
+                ops.add(newOp);
             }
         }
-        Collections.sort(operators);
-        return operators;
+        Collections.sort(ops);
+        return ops;
     }
 
     static String findArg(String strExp, int openIndex){
@@ -305,11 +309,11 @@ class Number extends MathElements implements IValuable{
 
     @Override
     void print() {
-        System.out.printf("%.3f",this.value);
+        System.out.printf("%.1f",this.value);
     }
 
     @Override
-    public double calculate() {
+    public double getValue() {
         return value;
     }
 }
@@ -381,6 +385,6 @@ abstract class Operator extends MathElements implements Comparable<Operator>{
 
     @Override
     public int compareTo(Operator operator) {
-        return Integer.compare(this.priority, operator.priority);
+        return Integer.compare(operator.priority, this.priority);
     }
 }
