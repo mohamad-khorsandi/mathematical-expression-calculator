@@ -1,6 +1,7 @@
 package com.company;
 
 import com.company.dateStructurs.stack;
+import com.company.dateStructurs.tree;
 
 import java.util.*;
 import java.util.regex.Matcher;
@@ -9,21 +10,23 @@ import java.util.regex.Pattern;
 public class Main {
     static Scanner sc = new Scanner(System.in);
     static String strExp;
-    static Polynomial mainPolynomial;
+    static Expression mainExpression;
     public static void main(String[] args) {
         while (sc.hasNextLine()) {
             strExp = sc.nextLine().replaceAll("\\s", "");
             strExp = strExp.replaceAll(Number.negativeSignRegex, "-1*");
 
             if (expChecker()) {
-                mainPolynomial = new Polynomial(strExp);
-                System.out.println(mainPolynomial.calculate());
+                mainExpression = new Expression(strExp);
+                tree<MathElements> treeExpression = mainExpression.toTree();
+                    treeExpression.print();
+                System.out.println(mainExpression.calculate());
             }
         }
     }
 
     static void fullPrint(){
-        mainPolynomial.print();
+        mainExpression.print();
         System.out.println();
     }
 
@@ -73,18 +76,18 @@ public class Main {
     }
 }
 
-class Polynomial{
-    public Polynomial(String strExp) {
+class Expression {
+    public Expression(String strExp) {
         // str to Polynomial
         for (int i = 0; i < strExp.length(); i++) {
-            terms.add(null);
+            elements.add(null);
         }
 
         Matcher m = Pattern.compile(Function.regex).matcher(strExp);
         while (m.find()){
             String name = m.group();
             String strArg = Function.findArg(strExp, m.end());
-            terms.set(m.start(), new Function(name, strArg));
+            elements.set(m.start(), new Function(name, strArg));
 
             String entireFunc = name+"("+strArg+")";
             strExp = strExp.replace(entireFunc,"!".repeat(entireFunc.length()));
@@ -93,7 +96,7 @@ class Polynomial{
 
         m = Pattern.compile(Number.regex).matcher(strExp);
         while (m.find()){
-            terms.set(m.start(), new Number(m.group()));
+            elements.set(m.start(), new Number(m.group()));
         }
 
         // change negative signs, so they won't be taken as operator
@@ -101,54 +104,102 @@ class Polynomial{
 
         m = Pattern.compile(Operator.regex).matcher(strExp);
         while (m.find()){
-            terms.set(m.start(), Operator.fetchObject(m.group()));
+            elements.set(m.start(), Operator.fetchObject(m.group()));
         }
 
-        for (int i = 0; i < terms.size(); i++) {
-            if (terms.get(i) == null) {
-                terms.remove(i);
+        for (int i = 0; i < elements.size(); i++) {
+            if (elements.get(i) == null) {
+                elements.remove(i);
                 i--;
             }
         }
     }
 
-    LinkedList<MathElements> terms = new LinkedList<>();
+    LinkedList<MathElements> elements = new LinkedList<>();
 
     public MathElements get(int index){
-        return terms.get(index);
+        return elements.get(index);
     }
 
     void replaceWithResult(Number result, int iPlus1, int i, int iMinus1){
-        terms.set(iPlus1, result);
-        terms.remove(i);
-        terms.remove(iMinus1);
+        elements.set(iPlus1, result);
+        elements.remove(i);
+        elements.remove(iMinus1);
     }
 
     void print(){
-        for (MathElements mathElements : terms)
+        for (MathElements mathElements : elements)
             mathElements.print();
     }
 
     double calculate(){
         return new Function(this).getValue();
     }
+
+    tree<MathElements> toTree(){
+        stack<tree<MathElements>> subTreesStk = new stack<>();
+        LinkedList<MathElements> postfix = this.Postfix();
+
+        for (MathElements ml : postfix){
+            if (ml instanceof IValuable) {
+                subTreesStk.push(((IValuable)ml).asTree());
+            }
+            else {
+                Operator operator = ((Operator)ml);
+                tree<MathElements> subTree = new tree<>(operator);
+
+                subTree.getRoot().setLeft(subTreesStk.pop().getRoot());
+                subTree.getRoot().setRight(subTreesStk.pop().getRoot());
+
+                subTreesStk.push(subTree);
+            }
+        }
+        return subTreesStk.pop();
+    }
+
+    LinkedList<MathElements> Postfix(){
+        LinkedList<MathElements> postfix = new LinkedList<>();
+        stack<Operator> stack = new stack<>();
+        for (MathElements ml : this.elements){
+            if (ml instanceof IValuable)
+                postfix.add(ml);
+
+            else {
+                while (!stack.isEmpty() && ((Operator) ml).priority <= stack.top().priority)
+                    postfix.add(stack.pop());
+
+                stack.push((Operator) ml);
+            }
+        }
+
+        while (!stack.isEmpty()){
+            postfix.add(stack.pop());
+        }
+
+        return postfix;
+    }
+
 }
 
 interface IValuable {
     double getValue();
+    tree<MathElements> asTree();
 }
 
 abstract class MathElements{
     abstract void print();
+
+    @Override
+    abstract public String toString();
 }
 
 class Function extends MathElements implements IValuable{
     public Function(String name, String strArg) {
         this.name = name;
-        this.argument = new Polynomial(strArg);
+        this.argument = new Expression(strArg);
         this.operation = fetchOperation(this.name);
     }
-    public Function(Polynomial argument) {
+    public Function(Expression argument) {
         this.name = "";
         this.argument = argument;
         this.operation = fetchOperation(this.name);
@@ -214,7 +265,7 @@ class Function extends MathElements implements IValuable{
     }
 
     static String regex = "("+Operation.namesRegex+")(?=\\()";
-    Polynomial argument;
+    Expression argument;
     String name;
     Operation operation;
 
@@ -233,16 +284,21 @@ class Function extends MathElements implements IValuable{
     }
 
     @Override
+    public String toString() {
+        return this.name+"()";
+    }
+
+    @Override
     public double getValue(){
         LinkedList <Operator> sortedOps = sortOpsDec();
 
-        while (argument.terms.size() > 1) {
+        while (argument.elements.size() > 1) {
             Operator highestOpr = sortedOps.removeFirst();
             int operatorIndex;
             if (highestOpr.symbol.equals("^"))
-                operatorIndex = argument.terms.lastIndexOf(highestOpr);
+                operatorIndex = argument.elements.lastIndexOf(highestOpr);
             else
-                operatorIndex = argument.terms.indexOf(highestOpr);
+                operatorIndex = argument.elements.indexOf(highestOpr);
 
             IValuable operand1 = ((IValuable)(argument.get(operatorIndex - 1)));
             IValuable operand2 = ((IValuable)(argument.get(operatorIndex + 1)));
@@ -255,9 +311,14 @@ class Function extends MathElements implements IValuable{
         return this.operation.applyFunc(((IValuable)argument.get(0)).getValue());
     }
 
+    @Override
+    public tree<MathElements> asTree() {
+        return this.argument.toTree();
+    }
+
     private LinkedList<Operator> sortOpsDec(){
         LinkedList<Operator> ops = new LinkedList<>();
-        for (int i = 0; i < argument.terms.size(); i++) {
+        for (int i = 0; i < argument.elements.size(); i++) {
             if (argument.get(i) instanceof Operator) {
                 Operator newOp = (Operator) argument.get(i);
                 ops.add(newOp);
@@ -313,8 +374,18 @@ class Number extends MathElements implements IValuable{
     }
 
     @Override
+    public String toString() {
+        return String.format("%.1f",this.value);
+    }
+
+    @Override
     public double getValue() {
         return value;
+    }
+
+    @Override
+    public tree<MathElements> asTree() {
+        return new tree<>(this);
     }
 }
 
@@ -381,6 +452,11 @@ abstract class Operator extends MathElements implements Comparable<Operator>{
     @Override
     void print() {
         System.out.print(symbol);
+    }
+
+    @Override
+    public String toString() {
+        return symbol;
     }
 
     @Override
