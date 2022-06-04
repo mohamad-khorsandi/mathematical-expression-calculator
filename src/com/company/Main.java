@@ -12,6 +12,7 @@ public class Main {
     static String strExp;
     static Expression mainExpression;
     public static void main(String[] args) {
+        System.out.println("inter an expression:");
         while (sc.hasNextLine()) {
             strExp = sc.nextLine().replaceAll("\\s", "");
             strExp = strExp.replaceAll(Number.negativeSignRegex, "-1*");
@@ -23,6 +24,7 @@ public class Main {
                 System.out.println("\n\nSTEP BY STEP CALCULATION:");
                 System.out.println("\nfinal result: " + mainExpression.calculate());
             }
+            System.out.println("\n\ninter a new expression:");
         }
     }
 
