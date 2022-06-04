@@ -99,6 +99,7 @@ public class tree<T> {
     }
 
     public void print(){
+        System.out.println("\n\n\nTREE OF EXPRESSION:");
         innerPrint(this.root, 0);
     }
 

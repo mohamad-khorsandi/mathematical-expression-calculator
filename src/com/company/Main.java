@@ -19,8 +19,9 @@ public class Main {
             if (expChecker()) {
                 mainExpression = new Expression(strExp);
                 tree<MathElements> treeExpression = mainExpression.toTree();
-                    treeExpression.print();
-                System.out.println(mainExpression.calculate());
+                treeExpression.print();
+                System.out.println("\n\nSTEP BY STEP CALCULATION:");
+                System.out.println("\nfinal result: " + mainExpression.calculate());
             }
         }
     }
