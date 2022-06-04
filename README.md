@@ -60,6 +60,17 @@ for each expression, a cli version of expression-calculate-tree will be printed:
 
 ![tree](https://user-images.githubusercontent.com/70153144/142826292-37bd0066-1964-454f-a66b-fc8a03124bc3.png)
 
+- compile(linux):
+```
+find -name *.java > src.txt
+javac -d out/ @src.txt
+```
+
+- run:
+```
+cd out
+java com.company.Main
+```
 
 
 
